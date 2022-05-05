@@ -26,7 +26,7 @@ const uploadFile = async (filename , file)=>{
 }
 
 
-const downloadFile = async (filename)=>{
+const getFileURL = async (filename)=>{
     
     const containerName = "images";
     const containerClient = blobServiceClient.getContainerClient(containerName);
@@ -79,5 +79,5 @@ const listFiles = async ()=>{
 
 exports.listFiles = listFiles;
 exports.uploadFile = uploadFile;
-exports.downloadFile = downloadFile;
+exports.getFileURL = getFileURL;
 exports.deleteFile = deleteFile;
