@@ -12,8 +12,10 @@ import NoImage from '../../images/noimage.jpg';
 import MedButton from '../Buttons';
 import DownloadIcon from '@mui/icons-material/Download';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import axios from 'axios'
 const JSZip = require("jszip");
 import { saveAs } from 'file-saver';
+import path from '../json/path.json'
 
 import {Wrapper, Grid} from './Segment.styles'
 import Filters from "./Filters"
@@ -25,13 +27,42 @@ const Segment = ({data, setStep}) => {
     const theme = useTheme();
     const [activeStep, setActiveStep] = useState(0);
     const [categories, setCategories] = useState([]);
-    const [mask, setMask] = useState("")
-
+    const [mask, setMask] = useState('');
     const [userinfo, setUserInfo] = useState({
       filters: [],
-      });
+    });
   
+    useEffect(() => {
+      if(userinfo.filters.length==0){
+        setMask(`${path[0]['imgpath']}/${data[activeStep][0].original}`)
+        return
+      }
+
+      var masks = []
+      for (var index = 0; index < userinfo.filters.length; index++) {
+        masks.push(data[activeStep][0].mask[userinfo.filters[index]])
+      }
+
+      setMask(`${path[0]['imgpath']}/${masks[masks.length - 1]}`)
+      return 
+      axios.post('http://localhost:5000/mask',{
+        masks: masks,
+        original: data[activeStep][0].original
+      }
+      ).then(function(response){
+          var image = new Image();
+          image.src = response.data
+          setMask(image.src)
+          //Perform action based on response
+        })
+        .catch(function(error){
+            console.log(error);
+          //Perform action based on error
+        });
+    },[userinfo.filters]);
+
       useEffect(() => {
+        setUserInfo({filters:[]})
         var cat = []
         var masks = data[activeStep][0].mask
         if(masks){
@@ -42,19 +73,6 @@ const Segment = ({data, setStep}) => {
         setCategories(cat)
       },[activeStep])
 
-      useEffect(() => {
-        var masks = []
-        if( data[activeStep][0].mask){
-          masks = data[activeStep][0].mask
-        }
-        
-        for(var i=0;i<userinfo.filters.length;i++){
-          console.log(masks[userinfo.filters[i]])
-        }
-
-        setMask(masks[userinfo.filters[0]])
-      },[userinfo])
-
     const handleNext = () => {
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
     };
@@ -63,11 +81,12 @@ const Segment = ({data, setStep}) => {
       setActiveStep((prevActiveStep) => prevActiveStep - 1);
     };
 
+
     const handleDownload = async() => {
       var zip = new JSZip();
 
       // Fetch the image and parse the response stream as a blob
-      var imageBlob = await fetch(`http://localhost:5000/Storage/images/${data[activeStep][0].original}`).then(response => response.blob());
+      var imageBlob = await fetch(`${path[0]['imgpath']}/${data[activeStep][0].original}`).then(response => response.blob());
 
       // create a new file from the blob object
       var imgData = new File([imageBlob], data[activeStep][0].original);
@@ -78,7 +97,7 @@ const Segment = ({data, setStep}) => {
       var masks = data[activeStep][0].mask
       if(masks){
         for (var key of Object.keys(masks)) {
-          imageBlob = await fetch(`http://localhost:5000/Storage/masks/${masks[key]}`).then(response => response.blob());
+          imageBlob = await fetch(`${path[0]['imgpath']}/${masks[key]}`).then(response => response.blob());
           imgData = new File([imageBlob], masks[key]);
           img.file(masks[key], imgData, { base64: true });
         }
@@ -117,23 +136,24 @@ const Segment = ({data, setStep}) => {
     <ResearcherNavbar/>
     <Wrapper>
     <Grid>{categories.map((name, index) =>{
-            return (<Filters key={index} name={name} handleCheckbox={handleCheckbox}/>)
+            return (<Filters key={activeStep+name} name={name} handleCheckbox={handleCheckbox}/>)
     })}
     </Grid>
     <Box sx={{ flexGrow: 1, border: "2px solid #D3D3D3" }}>
       <Stack spacing={2} direction="row">
       <Box sx={{ width: '100%', aspectRatio: "3/2" , pt: 2 , pl:2}}>
         <img 
-        src={`http://localhost:5000/Storage/images/${data[activeStep][0].original}`} 
+        src={`${path[0]['imgpath']}/${data[activeStep][0].original}`} 
         onError={e => {
           e.target.src = NoImage;
         }}
         style={{width: '100%', height: '100%'}}/>
       </Box>
       <Box sx={{ width: '100%', aspectRatio: "3/2" , pt: 2 , pr:2}}>
-        <img src={`http://localhost:5000/Storage/masks/${mask}`} 
-         onError={e => {
-          e.target.src = `http://localhost:5000/Storage/images/${data[activeStep][0].original}`;
+        <img 
+        src={mask}
+        onError={e => {
+          e.target.src = `${path[0]['imgpath']}/${data[activeStep][0].original}`;
         }}
         style={{width: '100%', height: '100%'}}/>
         {/* {steps[activeStep].description} */}
@@ -205,8 +225,6 @@ const Segment = ({data, setStep}) => {
       </Box>
       </Stack>
     </Box>
-
-
     </Wrapper>
     </>
   )
